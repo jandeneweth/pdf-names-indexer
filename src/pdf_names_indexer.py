@@ -87,7 +87,7 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = 
         re_flags += re.IGNORECASE
     name2pattern = dict()
     for name in names:
-        name_re = re.compile(rf"\b{name}\b", flags=re_flags)
+        name_re = re.compile(rf"\b{re.escape(name)}\b", flags=re_flags)
         name2pattern[name] = name_re
     # Parse the PDF
     count = 0
