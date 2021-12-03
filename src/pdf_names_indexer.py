@@ -179,7 +179,11 @@ def main(argv=None):
 
 
 def _parse_args(argv: t.List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="PDF Names Indexer: parses an input PDF document for a set of names to generate a page index.", epilog="Author: Jan Deneweth", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        description="PDF Names Indexer: parses an input PDF document for a set of names to generate a page index.",
+        epilog="Copyright (C) 2021  Jan Deneweth",
+        allow_abbrev=False
+    )
     parser.add_argument('pdf_file', help='PDF file to be parsed', type=argparse.FileType(mode='rb'))
     parser.add_argument('names_file', help="Text document containing one name per line, UTF-8 encoding expected.", type=argparse.FileType(mode='r', encoding='utf-8'))
     parser.add_argument('outfile', nargs='?', default=sys.stdout, help="Filepath of an output file. If blank, output will be printed to the console (UTF-8 encoding)", type=argparse.FileType(mode='w', encoding='utf-8'))
