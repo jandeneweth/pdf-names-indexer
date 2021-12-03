@@ -7,7 +7,7 @@ This script is intended for usage in finding names in a pdf file and creating an
 __author__ = "Jan Deneweth"
 __copyright__ = "Copyright 2021, Jan Deneweth"
 __license__ = "GPLv3+"
-__version__ = "2021.10.22a1"
+__version__ = "2021.12.03"
 __maintainer__ = "Jan Deneweth"
 __email__ = "jandeneweth@hotmail.com"
 
