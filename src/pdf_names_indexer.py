@@ -222,9 +222,10 @@ def main(argv=None):
             password=args.password,
         )
     finally:
-        args.pdf_file.close()
-        args.names_file.close()
-        args.outfile.close()
+        for fh in (args.pdf_file, args.names_file, args.outfile):
+            if fh in (sys.stdout, sys.stderr, sys.stdin):
+                continue
+            fh.close()
 
 
 def _parse_args(argv: t.List[str]) -> argparse.Namespace:
