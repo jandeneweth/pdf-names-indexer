@@ -11,6 +11,23 @@ import pdf_names_indexer
 
 # -- Tests --
 
+
+class TestAux:
+
+    def test_pages_included(self):
+        all_included = pdf_names_indexer.PagesIncludedSpecs(None)
+        assert all(x in all_included for x in (1, 10, 80, 404, ))
+        exact_included = pdf_names_indexer.PagesIncludedSpecs('1,80')
+        assert all(x in exact_included for x in (1, 80, ))
+        assert all(x not in exact_included for x in (10, 404, ))
+        range_included = pdf_names_indexer.PagesIncludedSpecs('1..80')
+        assert all(x in range_included for x in (1, 10, 80, ))
+        assert all(x not in range_included for x in (404, ))
+        mixed_included = pdf_names_indexer.PagesIncludedSpecs('1,11..79,400..450')
+        assert all(x in mixed_included for x in (1, 404, ))
+        assert all(x not in mixed_included for x in (10, 80, ))
+
+
 class TestArgParser:
 
     def test_parser_minimal(self):

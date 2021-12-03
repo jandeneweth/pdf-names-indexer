@@ -36,6 +36,7 @@ def index_names(
         pages_separator: str = ', ',
         page_prefix: str = '',
         page_offset: int = 0,
+        pages_included: 'PagesIncludedSpecs' = None,
         password: str | None = None,
 ):
     # Get the input names
@@ -44,7 +45,7 @@ def index_names(
     if duplicates:
         print(f"Warning: some names are not unique: \n{', '.join(duplicates)}", file=sys.stderr)
     # Get page occurence of each name
-    name2pages = _parse_names(fh=pdf_file, names=names, password=password, case_insensitive=case_insensitive)
+    name2pages = _parse_names(fh=pdf_file, names=names, password=password, case_insensitive=case_insensitive, pages_included=pages_included)
     if page_offset:
         # Offset the page numbers if needed
         name2pages = {
@@ -80,7 +81,8 @@ def _get_names(fh: t.TextIO, sort: bool = True, case_insensitive: bool = True) -
     return names, sorted(duplicates)
 
 
-def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = None, case_insensitive: bool = True) -> t.Mapping[str, t.List[int]]:
+def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = None, case_insensitive: bool = True, pages_included: 'PagesIncludedSpecs' = None) -> t.Mapping[str, t.List[int]]:
+    pages_included = pages_included or PagesIncludedSpecs(None)
     # Create the regex patterns
     re_flags = 0
     if case_insensitive:
@@ -95,6 +97,9 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = 
     page_nr_prev = -1
     text_prev = ''
     for page_nr, text in enumerate(_parse_pdf_pages(fh=fh, password=password), start=1):
+        if page_nr not in pages_included:
+            print("\tSkipped page {}".format(page_nr), file=sys.stderr)
+            continue
         print("\tParsing page {}...".format(page_nr), file=sys.stderr)
         # Flatten and simplify text
         text = _simplify_text(text=_flatten_text(text=text))
@@ -160,6 +165,39 @@ def _flatten_text(text: str) -> str:
     return text
 
 
+class PagesIncludedSpecs:
+
+    def __init__(self, pages_included: str | None):
+        self._specs: list[range] | None = None
+        if pages_included:
+            self._specs: list[range] = []
+            atoms = pages_included.split(',')
+            for atom in atoms:
+                vals = atom.split('..')
+                intvals = []
+                for val in vals:
+                    try:
+                        intval = int(val)
+                    except ValueError:
+                        raise argparse.ArgumentTypeError(f"aeach page number must be an integer (invalid value '{val}')")
+                    else:
+                        intvals.append(intval)
+                if len(intvals) == 1:
+                    self._specs.append(range(intvals[0], intvals[0]+1))
+                elif len(intvals) == 2:
+                    self._specs.append(range(intvals[0], intvals[1]+1))
+                else:
+                    raise argparse.ArgumentTypeError(f"each item must contain exactly one page number, or two separated by '..' (invalid item '{atom}', has {len(intvals)} values)")
+
+    def __contains__(self, item: int):
+        if self._specs is None:
+            return True
+        for spec in self._specs:
+            if item in spec:
+                return True
+        return False
+
+
 # -- Run as Script --
 
 def main(argv=None):
@@ -180,6 +218,7 @@ def main(argv=None):
             pages_separator=args.pages_separator,
             page_prefix=args.page_prefix,
             page_offset=args.page_offset,
+            pages_included=args.pages_included,
             password=args.password,
         )
     finally:
@@ -202,7 +241,8 @@ def _parse_args(argv: t.List[str]) -> argparse.Namespace:
     parser.add_argument('--separator', default=' : ', help="A string separating a name from its listing of pages")
     parser.add_argument('--pages_separator', default=', ', help="A string separating one page number from another")
     parser.add_argument('--page_prefix', default='', help="A string preceding each page number")
-    parser.add_argument('--page_offset', type=int, default=0, help="An offset to modify the output page numbers, by default the first page in the pdf will be seen as page 1")
+    parser.add_argument('--page_offset', type=int, default=0, help="An offset to modify the output page numbers, by default the first page in the pdf is page 1")
+    parser.add_argument('--pages_included', type=PagesIncludedSpecs, default=None, help="A series of pages and/or page ranges to search, in the format \"a,b,c..d,e..f\". By default all pages are searched")
     parser.add_argument('--password', default=None, help="A password for opening the PDF file")
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     args = parser.parse_args(args=argv)
