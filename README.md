@@ -6,8 +6,11 @@ A program to parse names from a PDF format file and output a page index.
 ## Usage
 
 ```
-usage: pdf_names_indexer.py [-h] [--preserve_order] [--case_sensitive] [--separator SEPARATOR] [--pages_separator PAGES_SEPARATOR] [--page_prefix PAGE_PREFIX] [--page_offset PAGE_OFFSET] [--password PASSWORD] [--version]
-                            pdf_file names_file [outfile]
+usage: pdf-names-indexer.exe [-h] [--preserve_order] [--case_sensitive] [--separator SEPARATOR]
+                             [--pages_separator PAGES_SEPARATOR] [--page_prefix PAGE_PREFIX]
+                             [--page_offset PAGE_OFFSET] [--pages_included PAGES_INCLUDED] [--password PASSWORD]
+                             [--version]
+                             pdf_file names_file [outfile]
 
 PDF Names Indexer: parses an input PDF document for a set of names to generate a page index.
 
@@ -27,9 +30,14 @@ options:
   --page_prefix PAGE_PREFIX
                         A string preceding each page number
   --page_offset PAGE_OFFSET
-                        An offset to modify the output page numbers, by default the first page in the pdf will be seen as page 1
+                        An offset to modify the output page numbers, by default the first page in the pdf is page 1
+  --pages_included PAGES_INCLUDED
+                        A series of pages and/or page ranges to search, in the format "a,b,c..d,e..f". By default all
+                        pages are searched
   --password PASSWORD   A password for opening the PDF file
   --version             show program's version number and exit
+
+Copyright (C) 2021 Jan Deneweth
 ```
 
 
