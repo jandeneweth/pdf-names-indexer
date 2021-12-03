@@ -36,7 +36,7 @@ def index_names(
         pages_separator: str = ', ',
         page_prefix: str = '',
         page_offset: int = 0,
-        password: t.Optional[str] = None,
+        password: str | None = None,
 ):
     # Get the input names
     names, duplicates = _get_names(fh=names_file, sort=sort, case_insensitive=case_insensitive)
@@ -58,7 +58,7 @@ def index_names(
 
 # -- Private Functions --
 
-def _get_names(fh: t.TextIO, sort=True, case_insensitive=True) -> t.Tuple[t.List[str], t.List[str]]:
+def _get_names(fh: t.TextIO, sort: bool = True, case_insensitive: bool = True) -> t.Tuple[t.List[str], t.List[str]]:
     """Read names from a file, removing duplicates."""
     names = list()
     unique_names = set()
@@ -80,7 +80,7 @@ def _get_names(fh: t.TextIO, sort=True, case_insensitive=True) -> t.Tuple[t.List
     return names, sorted(duplicates)
 
 
-def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password=None, case_insensitive=True) -> t.Mapping[str, t.List[int]]:
+def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = None, case_insensitive: bool = True) -> t.Mapping[str, t.List[int]]:
     # Create the regex patterns
     re_flags = 0
     if case_insensitive:
@@ -105,7 +105,7 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password=None, case_ins
     return name2pages
 
 
-def _parse_pdf_pages(fh: t.BinaryIO, password: t.Optional[str] = None) -> t.Iterator[str]:
+def _parse_pdf_pages(fh: t.BinaryIO, password: str | None = None) -> t.Iterator[str]:
     rsrcmgr = PDFResourceManager()
     device = PDFPageAggregator(rsrcmgr, laparams=LAParams())
     interpreter = PDFPageInterpreter(rsrcmgr, device)
@@ -115,11 +115,11 @@ def _parse_pdf_pages(fh: t.BinaryIO, password: t.Optional[str] = None) -> t.Iter
         interpreter.process_page(page)
         ltpage = device.get_result()
         # Retrieve all text from the page
-        text_total = ""
+        page_text = ""
         for lt_obj in ltpage:
             if isinstance(lt_obj, LTTextContainer):
-                text_total += lt_obj.get_text()
-        yield text_total
+                page_text += lt_obj.get_text()
+        yield page_text
 
 
 def _write_output(outfh, names: t.Iterable[str], name2pages: t.Mapping[str, t.Iterable[int]], separator: str, pages_separator: str, page_prefix: str, warn_not_found=True) -> None:
