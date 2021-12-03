@@ -92,15 +92,25 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = 
     # Parse the PDF
     count = 0
     name2pages = collections.defaultdict(list)
+    page_nr_prev = -1
+    text_prev = ''
     for page_nr, text in enumerate(_parse_pdf_pages(fh=fh, password=password), start=1):
         print("\tParsing page {}...".format(page_nr), file=sys.stderr)
         # Flatten and simplify text
         text = _simplify_text(text=_flatten_text(text=text))
         # Search names
         for name, pattern in name2pattern.items():
+            # In this page's text...
             if pattern.search(text):
                 name2pages[name].append(page_nr)
                 count += 1
+            # In this and previous page text combined...
+            #  Only if wasn't found in this nor previous page. In this case it's counted as present in the previous page.
+            elif page_nr_prev not in name2pages.get(name, []):
+                if pattern.search(text_prev+text):
+                    name2pages[name].append(page_nr_prev)
+        page_nr_prev = page_nr
+        text_prev = text
     print(f"Found a total of {count} name occurrences (multiple occurrences of a name on the same page are ignored)", file=sys.stderr)
     return name2pages
 
