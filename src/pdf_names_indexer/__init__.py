@@ -4,7 +4,6 @@ PDF Names Indexer
 This script is intended for usage in finding names in a PDF file and creating an index of occurrences.
 """
 
-
 import re
 import sys
 import argparse
@@ -77,7 +76,7 @@ def _get_names(
         if not name:
             continue
         # Check for duplicate name entries and skip them
-        unique_name = name.lower() if case_insensitive else name
+        unique_name = name.casefold() if case_insensitive else name
         if unique_name in unique_names:
             duplicates.add(name)
             continue
@@ -178,14 +177,15 @@ def _simplify_text(text: str) -> str:
     return text
 
 
+_RE_COMBINE_WHITESPACE = re.compile(r"\s+")
+
+
 def _flatten_text(text: str) -> str:
     """Reduce whitespace according to common conventions."""
     text = text.replace(
         "-\n", ""
     )  # hyphen indicates a word was broken up => join together again
-    text = text.replace("\n", " ")
-    while "  " in text:
-        text = text.replace("  ", " ")
+    text = _RE_COMBINE_WHITESPACE.sub(" ", text)
     return text
 
 
