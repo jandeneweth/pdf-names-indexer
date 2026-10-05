@@ -10,7 +10,6 @@ license = "GPL-3.0-or-later"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.14",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Intended Audience :: End Users/Desktop",
     "Topic :: Text Processing",
 ]
@@ -26,3 +25,7 @@ pdf-names-indexer = "pdf-names-indexer:main"
 test = [
     "pytest~=9.1.1",
 ]
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
