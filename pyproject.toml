@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pdf-names-indexer = "pdf-names-indexer:main"
+pdf-names-indexer = "pdf_names_indexer:main"
 
 [dependency-groups]
 test = [
