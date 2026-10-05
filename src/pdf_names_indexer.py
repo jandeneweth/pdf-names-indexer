@@ -17,11 +17,9 @@ import sys
 import argparse
 import collections
 import typing as t
+import contextlib
 
-from pdfminer.pdfpage import PDFPage
-from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams, LTTextContainer
+from pypdf import PdfReader
 
 
 # -- Public Functions --
@@ -43,7 +41,7 @@ def index_names(
     names, duplicates = _get_names(fh=names_file, sort=sort, case_insensitive=case_insensitive)
     print(f"Found {len(names)} names", file=sys.stderr)
     if duplicates:
-        print(f"Warning: some names are not unique: \n{', '.join(duplicates)}", file=sys.stderr)
+        print(f"Warning: some names are not unique: {', '.join(duplicates)}", file=sys.stderr)
     # Get page occurence of each name
     name2pages = _parse_names(fh=pdf_file, names=names, password=password, case_insensitive=case_insensitive, pages_included=pages_included)
     if page_offset:
@@ -74,6 +72,7 @@ def _get_names(fh: t.TextIO, sort: bool = True, case_insensitive: bool = True) -
         if unique_name in unique_names:
             duplicates.add(name)
             continue
+        unique_names.add(unique_name)
         # Add the name
         names.append(name)
     if sort:
@@ -121,20 +120,9 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = 
 
 
 def _parse_pdf_pages(fh: t.BinaryIO, password: str | None = None) -> t.Iterator[str]:
-    rsrcmgr = PDFResourceManager()
-    device = PDFPageAggregator(rsrcmgr, laparams=LAParams())
-    interpreter = PDFPageInterpreter(rsrcmgr, device)
-    # Process each page contained in the document.
-    for page in PDFPage.get_pages(fp=fh, password=password, check_extractable=True):
-        # Process the page to a layed-out page
-        interpreter.process_page(page)
-        ltpage = device.get_result()
-        # Retrieve all text from the page
-        page_text = ""
-        for lt_obj in ltpage:
-            if isinstance(lt_obj, LTTextContainer):
-                page_text += lt_obj.get_text()
-        yield page_text
+    reader = PdfReader(stream=fh, password=password)
+    for page in reader.pages:
+        yield page.extract_text()
 
 
 def _write_output(outfh, names: t.Iterable[str], name2pages: t.Mapping[str, t.Iterable[int]], separator: str, pages_separator: str, page_prefix: str, warn_not_found=True) -> None:
@@ -147,7 +135,7 @@ def _write_output(outfh, names: t.Iterable[str], name2pages: t.Mapping[str, t.It
             continue
         outfh.write(f"{name}{separator}{pages_separator.join(page_prefix+str(p) for p in pages)}\n")
     if warn_not_found and not_found:
-        print(f"Did not find any occurrences of the following names: \n{', '.join(not_found)}", file=sys.stderr)
+        print(f"Did not find any occurrences of the following names: {', '.join(not_found)}", file=sys.stderr)
 
 
 def _simplify_text(text: str) -> str:
@@ -206,12 +194,15 @@ def main(argv=None):
     args = _parse_args(argv=argv)
     case_insensitive = not args.case_sensitive
     sort = not args.preserve_order
-    # Run the processing
-    try:
+    with (
+        open(args.pdf_file, 'rb') as pdf_file,
+        open(args.names_file, 'r', encoding='utf-8') as names_file,
+        (contextlib.nullcontext(sys.stdout) if args.outfile == '-' else open(args.outfile, "w", encoding="utf-8")) as outfile
+    ):
         index_names(
-            pdf_file=args.pdf_file,
-            names_file=args.names_file,
-            outfile=args.outfile,
+            pdf_file=pdf_file,
+            names_file=names_file,
+            outfile=outfile,
             sort=sort,
             case_insensitive=case_insensitive,
             separator=args.separator,
@@ -221,11 +212,6 @@ def main(argv=None):
             pages_included=args.pages_included,
             password=args.password,
         )
-    finally:
-        for fh in (args.pdf_file, args.names_file, args.outfile):
-            if fh in (sys.stdout, sys.stderr, sys.stdin):
-                continue
-            fh.close()
 
 
 def _parse_args(argv: t.List[str]) -> argparse.Namespace:
@@ -234,9 +220,9 @@ def _parse_args(argv: t.List[str]) -> argparse.Namespace:
         epilog="Copyright (C) 2021  Jan Deneweth",
         allow_abbrev=False
     )
-    parser.add_argument('pdf_file', help='PDF file to be parsed', type=argparse.FileType(mode='rb'))
-    parser.add_argument('names_file', help="Text document containing one name per line, UTF-8 encoding expected.", type=argparse.FileType(mode='r', encoding='utf-8'))
-    parser.add_argument('outfile', nargs='?', default=sys.stdout, help="Filepath of an output file. If blank, output will be printed to the console (UTF-8 encoding)", type=argparse.FileType(mode='w', encoding='utf-8'))
+    parser.add_argument('pdf_file', type=str, help='PDF file to be parsed')
+    parser.add_argument('names_file', type=str, help="Text document containing one name per line, UTF-8 encoding expected.")
+    parser.add_argument('outfile', nargs='?', type=str, default="-", help="Filepath of an output file. By default (value '-') output will be printed to the console (UTF-8 encoding)")
     parser.add_argument('--preserve_order', action='store_true', help="The names list is kept in parsing order when set")
     parser.add_argument('--case_sensitive', action='store_true', help="The names search is case-sensitive when set")
     parser.add_argument('--separator', default=' : ', help="A string separating a name from its listing of pages")

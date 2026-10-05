@@ -4,54 +4,42 @@ PDF Names Indexer tests
 
 import os
 import io
-import pytest
 
 import pdf_names_indexer
 
 
-# -- Tests --
+def test_pages_included():
+    all_included = pdf_names_indexer.PagesIncludedSpecs(None)
+    assert all(x in all_included for x in (1, 10, 80, 404, ))
+    exact_included = pdf_names_indexer.PagesIncludedSpecs('1,80')
+    assert all(x in exact_included for x in (1, 80, ))
+    assert all(x not in exact_included for x in (10, 404, ))
+    range_included = pdf_names_indexer.PagesIncludedSpecs('1..80')
+    assert all(x in range_included for x in (1, 10, 80, ))
+    assert all(x not in range_included for x in (404, ))
+    mixed_included = pdf_names_indexer.PagesIncludedSpecs('1,11..79,400..450')
+    assert all(x in mixed_included for x in (1, 404, ))
+    assert all(x not in mixed_included for x in (10, 80, ))
 
-
-class TestAux:
-
-    def test_pages_included(self):
-        all_included = pdf_names_indexer.PagesIncludedSpecs(None)
-        assert all(x in all_included for x in (1, 10, 80, 404, ))
-        exact_included = pdf_names_indexer.PagesIncludedSpecs('1,80')
-        assert all(x in exact_included for x in (1, 80, ))
-        assert all(x not in exact_included for x in (10, 404, ))
-        range_included = pdf_names_indexer.PagesIncludedSpecs('1..80')
-        assert all(x in range_included for x in (1, 10, 80, ))
-        assert all(x not in range_included for x in (404, ))
-        mixed_included = pdf_names_indexer.PagesIncludedSpecs('1,11..79,400..450')
-        assert all(x in mixed_included for x in (1, 404, ))
-        assert all(x not in mixed_included for x in (10, 80, ))
-
-
-class TestArgParser:
-
-    def test_parser_minimal(self):
-        pdf_fp, names_fp, _ = _get_files(testdir='Odyssey')
-        argv = [pdf_fp, names_fp]
-        args = pdf_names_indexer._parse_args(argv=argv)
-        if not args.pdf_file.readable():
-            pytest.fail("PDF file not readable")
-        if not args.names_file.readable():
-            pytest.fail("Names file not readable")
-        if not args.outfile.writable():
-            pytest.fail("Outfile not writeable")
-        assert args.preserve_order is False
-        assert args.case_sensitive is False
-        assert args.separator == ' : '
-        assert args.pages_separator == ', '
-        assert args.page_prefix == ''
-        assert args.page_offset == 0
-        assert args.password is None
+def test_parser_minimal():
+    pdf_fp, names_fp, _ = _get_files(testdir='Odyssey')
+    argv = [pdf_fp, names_fp]
+    args = pdf_names_indexer._parse_args(argv=argv)
+    assert isinstance(args.pdf_file, str)
+    assert isinstance(args.names_file, str)
+    assert isinstance(args.outfile, str)
+    assert args.preserve_order is False
+    assert args.case_sensitive is False
+    assert args.separator == ' : '
+    assert args.pages_separator == ', '
+    assert args.page_prefix == ''
+    assert args.page_offset == 0
+    assert args.password is None
 
 
 class TestIndexer:
 
-    def test_odyssey_minimal(self):
+    def test_odyssey_minimal(self, capsys):
         pdf_fp, names_fp, expected_sorted_fp = _get_files(testdir='Odyssey')
         outfile = io.StringIO()
         with open(pdf_fp, 'rb') as pdf_file, open(names_fp, 'r') as names_file:
@@ -63,6 +51,9 @@ class TestIndexer:
         with open(expected_sorted_fp, 'r') as fh:
             expected_output = fh.read()
             assert expected_output == outfile.getvalue()
+        captured = capsys.readouterr()
+        assert "Warning: some names are not unique: Telemachus" in captured.err
+        assert "Did not find any occurrences of the following names: Athena, Eurycleia, Tiresias" in captured.err
 
 
 # -- Private Functions --
