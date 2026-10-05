@@ -1,15 +1,8 @@
 """
 PDF Names Indexer
 
-This script is intended for usage in finding names in a pdf file and creating an index of occurrences.
+This script is intended for usage in finding names in a PDF file and creating an index of occurrences.
 """
-
-__author__ = "Jan Deneweth"
-__copyright__ = "Copyright 2021, Jan Deneweth"
-__license__ = "GPLv3+"
-__version__ = "2021.12.03"
-__maintainer__ = "Jan Deneweth"
-__email__ = "jandeneweth@hotmail.com"
 
 
 import re
@@ -22,43 +15,59 @@ import contextlib
 from pypdf import PdfReader
 
 
-# -- Public Functions --
-
 def index_names(
-        pdf_file: t.BinaryIO,
-        names_file: t.TextIO,
-        outfile: t.TextIO,
-        sort: bool = True,
-        case_insensitive: bool = True,
-        separator: str = ' : ',
-        pages_separator: str = ', ',
-        page_prefix: str = '',
-        page_offset: int = 0,
-        pages_included: 'PagesIncludedSpecs' = None,
-        password: str | None = None,
+    pdf_file: t.BinaryIO,
+    names_file: t.TextIO,
+    outfile: t.TextIO,
+    sort: bool = True,
+    case_insensitive: bool = True,
+    separator: str = " : ",
+    pages_separator: str = ", ",
+    page_prefix: str = "",
+    page_offset: int = 0,
+    pages_included: "PagesIncludedSpecs" = None,
+    password: str | None = None,
 ):
     # Get the input names
-    names, duplicates = _get_names(fh=names_file, sort=sort, case_insensitive=case_insensitive)
+    names, duplicates = _get_names(
+        fh=names_file, sort=sort, case_insensitive=case_insensitive
+    )
     print(f"Found {len(names)} names", file=sys.stderr)
     if duplicates:
-        print(f"Warning: some names are not unique: {', '.join(duplicates)}", file=sys.stderr)
+        print(
+            f"Warning: some names are not unique: {', '.join(duplicates)}",
+            file=sys.stderr,
+        )
     # Get page occurence of each name
-    name2pages = _parse_names(fh=pdf_file, names=names, password=password, case_insensitive=case_insensitive, pages_included=pages_included)
+    name2pages = _find_names(
+        fh=pdf_file,
+        names=names,
+        password=password,
+        case_insensitive=case_insensitive,
+        pages_included=pages_included,
+    )
     if page_offset:
         # Offset the page numbers if needed
         name2pages = {
-            name: [p + page_offset for p in pages]
-            for name, pages in name2pages.items()
+            name: [p + page_offset for p in pages] for name, pages in name2pages.items()
         }
     # Output results
     print("Outputting results...", file=sys.stderr)
-    _write_output(outfh=outfile, names=names, name2pages=name2pages, separator=separator, pages_separator=pages_separator, page_prefix=page_prefix)
+    _write_output(
+        outfh=outfile,
+        names=names,
+        name2pages=name2pages,
+        separator=separator,
+        pages_separator=pages_separator,
+        page_prefix=page_prefix,
+    )
 
 
-# -- Private Functions --
-
-def _get_names(fh: t.TextIO, sort: bool = True, case_insensitive: bool = True) -> t.Tuple[t.List[str], t.List[str]]:
-    """Read names from a file, removing duplicates."""
+def _get_names(
+    fh: t.TextIO,
+    sort: bool = True,
+    case_insensitive: bool = True,
+) -> t.Tuple[t.List[str], t.List[str]]:
     names = list()
     unique_names = set()
     duplicates = set()
@@ -80,7 +89,13 @@ def _get_names(fh: t.TextIO, sort: bool = True, case_insensitive: bool = True) -
     return names, sorted(duplicates)
 
 
-def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = None, case_insensitive: bool = True, pages_included: 'PagesIncludedSpecs' = None) -> t.Mapping[str, t.List[int]]:
+def _find_names(
+    fh: t.BinaryIO,
+    names: t.Iterable[str],
+    password: str | None = None,
+    case_insensitive: bool = True,
+    pages_included: "PagesIncludedSpecs" = None,
+) -> t.Mapping[str, t.List[int]]:
     pages_included = pages_included or PagesIncludedSpecs(None)
     # Create the regex patterns
     re_flags = 0
@@ -94,8 +109,8 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = 
     count = 0
     name2pages = collections.defaultdict(list)
     page_nr_prev = -1
-    text_prev = ''
-    for page_nr, text in enumerate(_parse_pdf_pages(fh=fh, password=password), start=1):
+    text_prev = ""
+    for page_nr, text in enumerate(_get_pdf_pages(fh=fh, password=password), start=1):
         if page_nr not in pages_included:
             print("\tSkipped page {}".format(page_nr), file=sys.stderr)
             continue
@@ -111,21 +126,35 @@ def _parse_names(fh: t.BinaryIO, names: t.Iterable[str], password: str | None = 
             # In this and previous page text combined...
             #  Only if wasn't found in this nor previous page. In this case it's counted as present in the previous page.
             elif page_nr_prev not in name2pages.get(name, []):
-                if pattern.search(text_prev+text):
+                if pattern.search(text_prev + text):
                     name2pages[name].append(page_nr_prev)
         page_nr_prev = page_nr
         text_prev = text
-    print(f"Found a total of {count} name occurrences (multiple occurrences of a name on the same page are ignored)", file=sys.stderr)
+    print(
+        f"Found a total of {count} name occurrences (multiple occurrences of a name on the same page are ignored)",
+        file=sys.stderr,
+    )
     return name2pages
 
 
-def _parse_pdf_pages(fh: t.BinaryIO, password: str | None = None) -> t.Iterator[str]:
+def _get_pdf_pages(
+    fh: t.BinaryIO,
+    password: str | None = None,
+) -> t.Iterator[str]:
     reader = PdfReader(stream=fh, password=password)
     for page in reader.pages:
         yield page.extract_text()
 
 
-def _write_output(outfh, names: t.Iterable[str], name2pages: t.Mapping[str, t.Iterable[int]], separator: str, pages_separator: str, page_prefix: str, warn_not_found=True) -> None:
+def _write_output(
+    outfh,
+    names: t.Iterable[str],
+    name2pages: t.Mapping[str, t.Iterable[int]],
+    separator: str,
+    pages_separator: str,
+    page_prefix: str,
+    warn_not_found=True,
+) -> None:
     """Write name page occurences to the output."""
     not_found = []
     for name in names:
@@ -133,9 +162,14 @@ def _write_output(outfh, names: t.Iterable[str], name2pages: t.Mapping[str, t.It
         if not pages:
             not_found.append(name)
             continue
-        outfh.write(f"{name}{separator}{pages_separator.join(page_prefix+str(p) for p in pages)}\n")
+        outfh.write(
+            f"{name}{separator}{pages_separator.join(page_prefix+str(p) for p in pages)}\n"
+        )
     if warn_not_found and not_found:
-        print(f"Did not find any occurrences of the following names: {', '.join(not_found)}", file=sys.stderr)
+        print(
+            f"Did not find any occurrences of the following names: {', '.join(not_found)}",
+            file=sys.stderr,
+        )
 
 
 def _simplify_text(text: str) -> str:
@@ -146,7 +180,9 @@ def _simplify_text(text: str) -> str:
 
 def _flatten_text(text: str) -> str:
     """Reduce whitespace according to common conventions."""
-    text = text.replace("-\n", "")  # hyphen indicates a word was broken up => join together again
+    text = text.replace(
+        "-\n", ""
+    )  # hyphen indicates a word was broken up => join together again
     text = text.replace("\n", " ")
     while "  " in text:
         text = text.replace("  ", " ")
@@ -159,23 +195,28 @@ class PagesIncludedSpecs:
         self._specs: list[range] | None = None
         if pages_included:
             self._specs: list[range] = []
-            atoms = pages_included.split(',')
+            atoms = pages_included.split(",")
             for atom in atoms:
-                vals = atom.split('..')
+                vals = atom.split("..")
                 intvals = []
                 for val in vals:
                     try:
                         intval = int(val)
                     except ValueError:
-                        raise argparse.ArgumentTypeError(f"aeach page number must be an integer (invalid value '{val}')")
+                        raise argparse.ArgumentTypeError(
+                            f"Each page number must be an integer (invalid value '{val}')"
+                        )
                     else:
                         intvals.append(intval)
                 if len(intvals) == 1:
-                    self._specs.append(range(intvals[0], intvals[0]+1))
+                    self._specs.append(range(intvals[0], intvals[0] + 1))
                 elif len(intvals) == 2:
-                    self._specs.append(range(intvals[0], intvals[1]+1))
+                    self._specs.append(range(intvals[0], intvals[1] + 1))
                 else:
-                    raise argparse.ArgumentTypeError(f"each item must contain exactly one page number, or two separated by '..' (invalid item '{atom}', has {len(intvals)} values)")
+                    raise argparse.ArgumentTypeError(
+                        f"Each item must contain exactly one page number, or two separated by '..' "
+                        f"(invalid item '{atom}', has {len(intvals)} values)"
+                    )
 
     def __contains__(self, item: int):
         if self._specs is None:
@@ -188,6 +229,7 @@ class PagesIncludedSpecs:
 
 # -- Run as Script --
 
+
 def main(argv=None):
     # Parse command line arguments
     argv = argv if argv is not None else sys.argv[1:]
@@ -195,9 +237,13 @@ def main(argv=None):
     case_insensitive = not args.case_sensitive
     sort = not args.preserve_order
     with (
-        open(args.pdf_file, 'rb') as pdf_file,
-        open(args.names_file, 'r', encoding='utf-8') as names_file,
-        (contextlib.nullcontext(sys.stdout) if args.outfile == '-' else open(args.outfile, "w", encoding="utf-8")) as outfile
+        open(args.pdf_file, "rb") as pdf_file,
+        open(args.names_file, "r", encoding="utf-8") as names_file,
+        (
+            contextlib.nullcontext(sys.stdout)
+            if args.outfile == "-"
+            else open(args.outfile, "w", encoding="utf-8")
+        ) as outfile,
     ):
         index_names(
             pdf_file=pdf_file,
@@ -218,28 +264,75 @@ def _parse_args(argv: t.List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="PDF Names Indexer: parses an input PDF document for a set of names to generate a page index.",
         epilog="Copyright (C) 2021  Jan Deneweth",
-        allow_abbrev=False
+        allow_abbrev=False,
     )
-    parser.add_argument('pdf_file', type=str, help='PDF file to be parsed')
-    parser.add_argument('names_file', type=str, help="Text document containing one name per line, UTF-8 encoding expected.")
-    parser.add_argument('outfile', nargs='?', type=str, default="-", help="Filepath of an output file. By default (value '-') output will be printed to the console (UTF-8 encoding)")
-    parser.add_argument('--preserve_order', action='store_true', help="The names list is kept in parsing order when set")
-    parser.add_argument('--case_sensitive', action='store_true', help="The names search is case-sensitive when set")
-    parser.add_argument('--separator', default=' : ', help="A string separating a name from its listing of pages")
-    parser.add_argument('--pages_separator', default=', ', help="A string separating one page number from another")
-    parser.add_argument('--page_prefix', default='', help="A string preceding each page number")
-    parser.add_argument('--page_offset', type=int, default=0, help="An offset to modify the output page numbers, by default the first page in the pdf is page 1")
-    parser.add_argument('--pages_included', type=PagesIncludedSpecs, default=None, help="A series of pages and/or page ranges to search, in the format \"a,b,c..d,e..f\". By default all pages are searched")
-    parser.add_argument('--password', default=None, help="A password for opening the PDF file")
-    parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
+    parser.add_argument(
+        "pdf_file",
+        type=str,
+        help="PDF file to be parsed",
+    )
+    parser.add_argument(
+        "names_file",
+        type=str,
+        help="Text document containing one name per line, UTF-8 encoding expected.",
+    )
+    parser.add_argument(
+        "outfile",
+        nargs="?",
+        type=str,
+        default="-",
+        help="Filepath of an output file. By default (value '-') output will be printed to the console (UTF-8 encoding)",
+    )
+    parser.add_argument(
+        "--preserve_order",
+        action="store_true",
+        help="The names list is kept in parsing order when set",
+    )
+    parser.add_argument(
+        "--case_sensitive",
+        action="store_true",
+        help="The names search is case-sensitive when set",
+    )
+    parser.add_argument(
+        "--separator",
+        default=" : ",
+        help="A string separating a name from its listing of pages",
+    )
+    parser.add_argument(
+        "--pages_separator",
+        default=", ",
+        help="A string separating one page number from another",
+    )
+    parser.add_argument(
+        "--page_prefix",
+        default="",
+        help="A string preceding each page number",
+    )
+    parser.add_argument(
+        "--page_offset",
+        type=int,
+        default=0,
+        help="An offset to modify the output page numbers, by default the first page in the pdf is page 1",
+    )
+    parser.add_argument(
+        "--pages_included",
+        type=PagesIncludedSpecs,
+        default=None,
+        help='A series of pages and/or page ranges to search, in the format "a,b,c..d,e..f". By default all pages are searched',
+    )
+    parser.add_argument(
+        "--password",
+        default=None,
+        help="A password for opening the PDF file",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s 2026-10-05",
+    )
     args = parser.parse_args(args=argv)
     return args
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
-
-#
-#
-# END OF FILE

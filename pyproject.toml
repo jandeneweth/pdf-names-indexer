@@ -1,8 +1,26 @@
 [project]
+name = "pdf-names-indexer"
+version = "2026.10.05"
+description = "A program to parse names from a PDF format file and output a page index"
+authors = [
+    {name = "Jan Deneweth", email = "jandeneweth@hotmail.com"}
+]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Text Processing",
+]
 requires-python = ">=3.14"
 dependencies = [
     "pypdf~=6.19.0"
 ]
+
+[project.scripts]
+pdf-names-indexer = "pdf-names-indexer:main"
 
 [dependency-groups]
 test = [
