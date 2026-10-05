@@ -20,10 +20,9 @@ or `uv tool run pdf-names-indexer`.
 ## Usage
 
 ```
-usage: pdf-names-indexer [-h] [--preserve_order] [--case_sensitive] [--separator SEPARATOR]
-                         [--pages_separator PAGES_SEPARATOR] [--page_prefix PAGE_PREFIX]
-                         [--page_offset PAGE_OFFSET] [--pages_included PAGES_INCLUDED] [--password PASSWORD]
-                         [--version]
+usage: pdf-names-indexer [-h] [--sort_names] [--filter_duplicates] [--filter_not_found] [--case_sensitive]
+                         [--separator SEPARATOR] [--pages_separator PAGES_SEPARATOR] [--page_prefix PAGE_PREFIX]
+                         [--page_offset PAGE_OFFSET] [--pages_included PAGES_INCLUDED] [--password PASSWORD] [--version]
                          pdf_file names_file [outfile]
 
 PDF Names Indexer: parses an input PDF document for a set of names to generate a page index.
@@ -35,7 +34,9 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --preserve_order      The names list is kept in parsing order when set
+  --sort_names          Output sorts the names alphabetically if set
+  --filter_duplicates   Duplicate names are only emitted once in the output if set
+  --filter_not_found    Names without results are not emitted in the output if set
   --case_sensitive      The names search is case-sensitive when set
   --separator SEPARATOR
                         A string separating a name from its listing of pages

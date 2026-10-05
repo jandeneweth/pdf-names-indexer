@@ -18,18 +18,20 @@ def index_names(
     pdf_file: t.BinaryIO,
     names_file: t.TextIO,
     outfile: t.TextIO,
-    sort: bool = True,
+    sort_names: bool = True,
     case_insensitive: bool = True,
     separator: str = " : ",
     pages_separator: str = ", ",
     page_prefix: str = "",
     page_offset: int = 0,
-    pages_included: "PagesIncludedSpecs" = None,
+    pages_included: "PagesIncludedSpecs | None" = None,
+    filter_duplicates: bool = False,
+    filter_not_found: bool = False,
     password: str | None = None,
 ):
     # Get the input names
     names, duplicates = _get_names(
-        fh=names_file, sort=sort, case_insensitive=case_insensitive
+        fh=names_file, sort=sort_names, case_insensitive=case_insensitive, filter_duplicates=filter_duplicates,
     )
     print(f"Found {len(names)} names", file=sys.stderr)
     if duplicates:
@@ -59,13 +61,15 @@ def index_names(
         separator=separator,
         pages_separator=pages_separator,
         page_prefix=page_prefix,
+        filter_not_found=filter_not_found,
     )
 
 
 def _get_names(
     fh: t.TextIO,
-    sort: bool = True,
-    case_insensitive: bool = True,
+    sort: bool,
+    case_insensitive: bool,
+    filter_duplicates: bool,
 ) -> t.Tuple[t.List[str], t.List[str]]:
     names = list()
     unique_names = set()
@@ -79,7 +83,8 @@ def _get_names(
         unique_name = name.casefold() if case_insensitive else name
         if unique_name in unique_names:
             duplicates.add(name)
-            continue
+            if filter_duplicates:
+                continue
         unique_names.add(unique_name)
         # Add the name
         names.append(name)
@@ -152,7 +157,7 @@ def _write_output(
     separator: str,
     pages_separator: str,
     page_prefix: str,
-    warn_not_found=True,
+    filter_not_found: bool,
 ) -> None:
     """Write name page occurences to the output."""
     not_found = []
@@ -160,13 +165,14 @@ def _write_output(
         pages = name2pages[name]
         if not pages:
             not_found.append(name)
-            continue
+            if filter_not_found:
+                continue
         outfh.write(
             f"{name}{separator}{pages_separator.join(page_prefix+str(p) for p in pages)}\n"
         )
-    if warn_not_found and not_found:
+    if not_found:
         print(
-            f"Did not find any occurrences of the following names: {', '.join(not_found)}",
+            f"Warning: Did not find any occurrences of the following names: {', '.join(not_found)}",
             file=sys.stderr,
         )
 
@@ -235,7 +241,6 @@ def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     args = _parse_args(argv=argv)
     case_insensitive = not args.case_sensitive
-    sort = not args.preserve_order
     with (
         open(args.pdf_file, "rb") as pdf_file,
         open(args.names_file, "r", encoding="utf-8") as names_file,
@@ -249,7 +254,9 @@ def main(argv=None):
             pdf_file=pdf_file,
             names_file=names_file,
             outfile=outfile,
-            sort=sort,
+            sort_names=args.sort_names,
+            filter_duplicates=args.filter_duplicates,
+            filter_not_found=args.filter_not_found,
             case_insensitive=case_insensitive,
             separator=args.separator,
             pages_separator=args.pages_separator,
@@ -284,9 +291,19 @@ def _parse_args(argv: t.List[str]) -> argparse.Namespace:
         help="Filepath of an output file. By default (value '-') output will be printed to the console (UTF-8 encoding)",
     )
     parser.add_argument(
-        "--preserve_order",
+        "--sort_names",
         action="store_true",
-        help="The names list is kept in parsing order when set",
+        help="Output sorts the names alphabetically if set",
+    )
+    parser.add_argument(
+        "--filter_duplicates",
+        action="store_true",
+        help="Duplicate names are only emitted once in the output if set",
+    )
+    parser.add_argument(
+        "--filter_not_found",
+        action="store_true",
+        help="Names without results are not emitted in the output if set",
     )
     parser.add_argument(
         "--case_sensitive",
