@@ -31,7 +31,10 @@ def index_names(
 ):
     # Get the input names
     names, duplicates = _get_names(
-        fh=names_file, sort=sort_names, case_insensitive=case_insensitive, filter_duplicates=filter_duplicates,
+        fh=names_file,
+        sort=sort_names,
+        case_insensitive=case_insensitive,
+        filter_duplicates=filter_duplicates,
     )
     print(f"Found {len(names)} names", file=sys.stderr)
     if duplicates:
