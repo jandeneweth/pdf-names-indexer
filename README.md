@@ -3,6 +3,20 @@
 A program to parse names from a PDF format file and output a page index.
 
 
+## Installation
+
+The recommended approach is to use [uv](https://docs.astral.sh/uv/getting-started/installation/).
+See their website for installation instructions for your system.
+It will manage Python versions and package dependencies transparently, avoiding clashes with system installations.
+
+```
+uv tool install git+https://github.com/jandeneweth/pdf-names-indexer
+```
+
+Then run the tool using either `pdf-names-indexer` directly if it was succesfully installed on your PATH, 
+or `uv tool run pdf-names-indexer`.
+
+
 ## Usage
 
 ```
