@@ -28,7 +28,9 @@ def test_parser_minimal():
     assert isinstance(args.pdf_file, str)
     assert isinstance(args.names_file, str)
     assert isinstance(args.outfile, str)
-    assert args.preserve_order is False
+    assert args.sort_names is False
+    assert args.filter_duplicates is False
+    assert args.filter_not_found is False
     assert args.case_sensitive is False
     assert args.separator == ' : '
     assert args.pages_separator == ', '
@@ -47,6 +49,8 @@ class TestIndexer:
                 pdf_file=pdf_file,
                 names_file=names_file,
                 outfile=outfile,
+                filter_duplicates=True,
+                filter_not_found=True,
             )
         with open(expected_sorted_fp, 'r') as fh:
             expected_output = fh.read()
